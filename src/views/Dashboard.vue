@@ -1,7 +1,6 @@
 <template>
   <div class="root" ref="rootEl">
     <!-- 固定层（不随滚动） -->
-  <div class="content" :class="{ blurred: sheetOpen }">
     <div class="overlay">
       <div
         class="logo-pill"
@@ -31,9 +30,8 @@
     >
       <img src="@/assets/icons/focus.svg" alt="" />
     </div>
- </div>
     <!-- 舞台：等比缩放 + 居中（打开 sheet 时自己模糊 + 右推） -->
-    <div class="stage" :style="stageStyle" :class="{ blurred: sheetOpen }" ref="stageEl">
+    <div class="stage" :style="stageStyle" :class="{ blurred: sheetOpen }">
       <img v-if="debugBg" class="ref" src="@/assets/reference.png" alt="" />
 
       <header
@@ -99,6 +97,9 @@ import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import DebugTools from '@/components/DebugTools.vue'
 import GlassSheet from '@/components/GlassSheet.vue'
 
+type StageRect = { x: number; y: number; w: number; h: number; centerX?: boolean }
+type Section = 'roadmap' | 'milestones' | 'status'
+
 /** 设计稿尺寸 & 额外滚动 */
 const DESIGN_W = 1920
 const DESIGN_H = 1080
@@ -106,145 +107,152 @@ const extraScroll = 2400
 
 /** 滚动阈值 */
 const NAV_BG_COLLAPSE_T = 10
-const NAV_LOGO_SHOW_T   = 28
-const NAV_SHRINK_T      = 60
-const ICON_COMPACT_SIZE     = 56
+const NAV_LOGO_SHOW_T = 28
+const NAV_SHRINK_T = 60
+const ICON_COMPACT_SIZE = 56
 const NAV_COMPACT_PILL_SIZE = 56
 
 /** 初始位置（设计坐标） */
 const posData = reactive({
-  logo:  { x: 57,  y: 36,  w: 320, h: 87  },
-  hero:  { x: 960, y: 447, w: 1200, h: 172, centerX: true },
+  logo: { x: 57, y: 36, w: 320, h: 87 },
+  hero: { x: 960, y: 447, w: 1200, h: 172, centerX: true },
   cardA: { x: 437, y: 846, w: 360, h: 260 },
-  cardB: { x: 1128,y: 846, w: 360, h: 260 },
-  icon:  { x: 57,  y: 985, w: 32,  h: 32  },
-})
+  cardB: { x: 1128, y: 846, w: 360, h: 260 },
+  icon: { x: 57, y: 985, w: 32, h: 32 },
+} satisfies Record<string, StageRect>)
 
 /** 等比缩放 + 居中 */
 const vw = ref(window.innerWidth)
 const vh = ref(window.innerHeight)
-const scale   = computed(() => Math.min(vw.value / DESIGN_W, vh.value / DESIGN_H))
+const scale = computed(() => Math.min(vw.value / DESIGN_W, vh.value / DESIGN_H))
 const offsetX = computed(() => (vw.value - DESIGN_W * scale.value) / 2)
 const offsetY = computed(() => (vh.value - DESIGN_H * scale.value) / 2)
 const stageStyle = computed(() => ({
-  width: DESIGN_W + 'px',
-  height: DESIGN_H + 'px',
-  /* 追加一个二次位移变量，打开 sheet 时右推 */
+  width: `${DESIGN_W}px`,
+  height: `${DESIGN_H}px`,
   transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value}) translate(var(--push-x, 0), var(--push-y, 0))`,
   transformOrigin: 'top left',
 }))
-function onResize(){ vw.value = window.innerWidth; vh.value = window.innerHeight }
+function onResize() {
+  vw.value = window.innerWidth
+  vh.value = window.innerHeight
+}
 
 /** 舞台元素定位（设计坐标） */
-function rect(r: any){
+function rect(r: StageRect) {
   return {
-    left: r.x + 'px',
-    top:  r.y + 'px',
-    width:  r.w + 'px',
-    height: r.h + 'px',
-    '--w':  r.w + 'px',
-    '--h':  r.h + 'px',
+    left: `${r.x}px`,
+    top: `${r.y}px`,
+    width: `${r.w}px`,
+    height: `${r.h}px`,
+    '--w': `${r.w}px`,
+    '--h': `${r.h}px`,
   }
 }
 const heroRect = computed(() => ({
-  left: (posData.hero.centerX ? DESIGN_W / 2 : posData.hero.x) + 'px',
-  top: posData.hero.y + 'px',
-  width: posData.hero.w + 'px',
-  height: posData.hero.h + 'px',
+  left: `${posData.hero.centerX ? DESIGN_W / 2 : posData.hero.x}px`,
+  top: `${posData.hero.y}px`,
+  width: `${posData.hero.w}px`,
+  height: `${posData.hero.h}px`,
   transform: posData.hero.centerX ? 'translateX(-50%)' : '',
 }))
 
 /** 固定层通用定位（设计坐标 → 视口 fixed） */
-function fixedStyle(r: any, compact = false, compactSize = 56) {
+function fixedStyle(r: StageRect, compact = false, compactSize = 56) {
   const w0 = compact ? compactSize : r.w
   const h0 = compact ? compactSize : r.h
   return {
-    left:  `${offsetX.value + r.x * scale.value}px`,
-    top:   `${offsetY.value + r.y * scale.value}px`,
-    width: `var(--w)`,
-    height:`var(--h)`,
+    left: `${offsetX.value + r.x * scale.value}px`,
+    top: `${offsetY.value + r.y * scale.value}px`,
+    width: 'var(--w)',
+    height: 'var(--h)',
     '--w': `${w0 * scale.value}px`,
     '--h': `${h0 * scale.value}px`,
   }
 }
 
 /** 徽标排布（独立） */
-const BADGE_BASE_SIZE    = Math.round(posData.logo.h * 0.5)
+const BADGE_BASE_SIZE = Math.round(posData.logo.h * 0.5)
 const BADGE_COMPACT_SIZE = 56
-function badgeStyle(r: any, compact = false){
+function badgeStyle(r: StageRect, compact = false) {
   const pillW = (compact ? NAV_COMPACT_PILL_SIZE : r.w) * scale.value
   const pillH = (compact ? NAV_COMPACT_PILL_SIZE : r.h) * scale.value
-  const left  = offsetX.value + r.x * scale.value
-  const top   = offsetY.value + r.y * scale.value
-  const cx    = left + pillW / 2
-  const cy    = top  + pillH / 2
-  const size  = (compact ? BADGE_COMPACT_SIZE : BADGE_BASE_SIZE) * scale.value
-  return { left:`${cx - size/2}px`, top:`${cy - size/2}px`, width:`${size}px`, height:`${size}px` }
+  const left = offsetX.value + r.x * scale.value
+  const top = offsetY.value + r.y * scale.value
+  const cx = left + pillW / 2
+  const cy = top + pillH / 2
+  const size = (compact ? BADGE_COMPACT_SIZE : BADGE_BASE_SIZE) * scale.value
+  return { left: `${cx - size / 2}px`, top: `${cy - size / 2}px`, width: `${size}px`, height: `${size}px` }
 }
 
 /** —— 调试状态：交由 DebugTools 控制 —— */
-const debugOn   = ref(true)
+const debugOn = ref(true)
 const debugGrid = ref(false)
-const debugBg   = ref(false)
-const selected  = ref<keyof typeof posData | ''>('')
+const debugBg = ref(false)
+const selected = ref<keyof typeof posData | ''>('')
 
-function select(k: keyof typeof posData){
+function select(k: keyof typeof posData) {
   if (debugOn.value) selected.value = k
 }
 
 /** 导出 JSON（供 DebugTools 复制） */
 const exportJson = computed(() => {
-  const obj: Record<string, any> = {}
-  for (const [k, v] of Object.entries(posData)) {
-    obj[k] = { x: (v as any).x, y: (v as any).y, w: (v as any).w, h: (v as any).h }
-    if ((v as any).centerX) obj[k].centerX = true
+  const obj: Record<string, StageRect> = {}
+  for (const [k, v] of Object.entries(posData) as Array<[string, StageRect]>) {
+    const { x, y, w, h, centerX } = v
+    obj[k] = { x, y, w, h }
+    if (centerX) obj[k].centerX = true
   }
   return JSON.stringify(obj, null, 2)
 })
 
 /** 滚动监听：三段状态 */
-const rootEl = ref<HTMLElement|null>(null)
-const scrolled        = ref(false)
-const navHideBg       = ref(false)
-const navLogoVisible  = ref(false)
-const navCompact      = ref(false)
-function onAnyScroll(){
+const rootEl = ref<HTMLElement | null>(null)
+const scrolled = ref(false)
+const navHideBg = ref(false)
+const navLogoVisible = ref(false)
+const navCompact = ref(false)
+function onAnyScroll() {
   const y = window.scrollY || rootEl.value?.scrollTop || 0
-  scrolled.value       = y > 10
-  navHideBg.value      = y > NAV_BG_COLLAPSE_T
+  scrolled.value = y > 10
+  navHideBg.value = y > NAV_BG_COLLAPSE_T
   navLogoVisible.value = y > NAV_LOGO_SHOW_T
-  navCompact.value     = y > NAV_SHRINK_T
+  navCompact.value = y > NAV_SHRINK_T
 }
 
-/** 第二页（高斯模糊） */
+/** 毛玻璃信息侧栏 */
 const sheetOpen = ref(false)
-const sheetItems = [
-  { key: 'roadmap',    label: '技术路线图' },
+const sheetItems: Array<{ key: Section; label: string }> = [
+  { key: 'roadmap', label: '技术路线图' },
   { key: 'milestones', label: '节点' },
-  { key: 'status',     label: '状态' },
+  { key: 'status', label: '状态' },
 ]
-const section = ref<'roadmap'|'milestones'|'status'>('roadmap')
-function onIconClick(e: MouseEvent){
-  if (debugOn.value && (e as any).altKey) { selected.value = 'icon'; return }
+const section = ref<Section>('roadmap')
+function onIconClick(e: MouseEvent) {
+  if (debugOn.value && (e as any).altKey) {
+    selected.value = 'icon'
+    return
+  }
   openSheet()
 }
-function openSheet(){ sheetOpen.value = true;  lockScroll(true) }
-function closeSheet(){ sheetOpen.value = false; lockScroll(false) }
-function lockScroll(on: boolean){ document.documentElement.style.overflow = on ? 'hidden' : '' }
-function onEsc(e: KeyboardEvent){ if (e.key === 'Escape' && sheetOpen.value) closeSheet() }
+function openSheet() {
+  sheetOpen.value = true
+}
+function closeSheet() {
+  sheetOpen.value = false
+}
 
 /** 生命周期 */
 onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('scroll', onAnyScroll, { passive: true })
-  window.addEventListener('keydown', onEsc)
   rootEl.value?.addEventListener('scroll', onAnyScroll, { passive: true })
+  onResize()
   onAnyScroll()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', onAnyScroll)
-  window.removeEventListener('keydown', onEsc)
   rootEl.value?.removeEventListener('scroll', onAnyScroll)
 })
 </script>

@@ -64,11 +64,18 @@ const emit = defineEmits<{
 function onEsc(e: KeyboardEvent){
   if (e.key === 'Escape' && props.open) emit('close')
 }
-watch(() => props.open, v => {
-  document.documentElement.style.overflow = v ? 'hidden' : ''
-})
+watch(
+  () => props.open,
+  v => {
+    document.documentElement.style.overflow = v ? 'hidden' : ''
+  },
+  { immediate: true },
+)
 onMounted(() => window.addEventListener('keydown', onEsc))
-onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEsc)
+  document.documentElement.style.overflow = ''
+})
 
 const panelStyle = computed(() => ({
   '--left':  props.left + 'px',
