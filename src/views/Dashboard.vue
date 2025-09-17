@@ -46,18 +46,62 @@
         <h2>技术路线 / 节点图</h2>
       </header>
 
-      <div
+      <section
         class="card card-a"
         :style="rect(posData.cardA)"
         :class="{ sel: selected === 'cardA' && debugOn }"
         @click="select('cardA')"
-      />
-      <div
+      >
+        <header class="card-head">
+          <p class="eyebrow">Sprint updates · 最新进展</p>
+          <h3>Roadmap live snapshot</h3>
+          <p class="sub">In-progress highlights from the product engineering sprint.</p>
+        </header>
+        <ul class="updates" role="list">
+          <li v-for="item in updates" :key="item.id" class="update-item">
+            <button type="button" class="update-card" @click.stop="openUpdate(item)">
+              <span class="update-meta">
+                <span class="date">{{ item.date }}</span>
+                <span class="badge">{{ item.badge }}</span>
+              </span>
+              <span class="update-body">
+                <span class="title">{{ item.title }}</span>
+                <span class="desc">{{ item.desc }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </section>
+      <section
         class="card card-b"
         :style="rect(posData.cardB)"
         :class="{ sel: selected === 'cardB' && debugOn }"
         @click="select('cardB')"
-      />
+      >
+        <header class="card-head">
+          <p class="eyebrow">Sprint focus · 本周聚焦</p>
+          <h3>Product engineering board</h3>
+          <p class="sub">Quick actions to jump into roadmap, milestones, and status.</p>
+        </header>
+        <div class="action-grid">
+          <button
+            v-for="action in actions"
+            :key="action.id"
+            type="button"
+            class="action"
+            @click.stop="runAction(action.target)"
+          >
+            <span class="action-label">{{ action.label }}</span>
+            <span class="action-hint">{{ action.hint }}</span>
+          </button>
+        </div>
+        <dl class="progress">
+          <div class="progress-row" v-for="metric in metrics" :key="metric.id">
+            <dt>{{ metric.label }}</dt>
+            <dd>{{ metric.value }}</dd>
+          </div>
+        </dl>
+      </section>
 
       <div v-if="debugGrid" class="grid"></div>
       <div class="page-tail" :style="{ height: extraScroll + 'px' }"></div>
@@ -218,12 +262,14 @@ function onAnyScroll(){
 
 /** 第二页（高斯模糊） */
 const sheetOpen = ref(false)
-const sheetItems = [
+type Section = 'roadmap' | 'milestones' | 'status'
+
+const sheetItems: Array<{ key: Section; label: string }> = [
   { key: 'roadmap',    label: '技术路线图' },
   { key: 'milestones', label: '节点' },
   { key: 'status',     label: '状态' },
 ]
-const section = ref<'roadmap'|'milestones'|'status'>('roadmap')
+const section = ref<Section>('roadmap')
 function onIconClick(e: MouseEvent){
   if (debugOn.value && (e as any).altKey) { selected.value = 'icon'; return }
   openSheet()
@@ -232,6 +278,67 @@ function openSheet(){ sheetOpen.value = true;  lockScroll(true) }
 function closeSheet(){ sheetOpen.value = false; lockScroll(false) }
 function lockScroll(on: boolean){ document.documentElement.style.overflow = on ? 'hidden' : '' }
 function onEsc(e: KeyboardEvent){ if (e.key === 'Escape' && sheetOpen.value) closeSheet() }
+
+type UpdateCard = {
+  id: string
+  badge: string
+  date: string
+  title: string
+  desc: string
+  target: Section
+}
+
+const updates: UpdateCard[] = [
+  {
+    id: 'roadmap-live',
+    badge: 'Roadmap',
+    date: '09 · 17',
+    title: 'Roadmap scaffold live',
+    desc: 'Baseline sections wired up for upcoming feature work.',
+    target: 'roadmap' as const,
+  },
+  {
+    id: 'milestone-chart',
+    badge: 'Milestone',
+    date: '09 · 16',
+    title: 'Milestone gantt draft',
+    desc: 'Visual timeline queued for engineering integration.',
+    target: 'milestones' as const,
+  },
+  {
+    id: 'status-sync',
+    badge: 'Status',
+    date: '09 · 15',
+    title: 'Status sync in progress',
+    desc: 'API handshake and badge design entering QA review.',
+    target: 'status' as const,
+  },
+]
+
+type ActionCard = { id: string; target: Section; label: string; hint: string }
+type MetricRow = { id: string; label: string; value: string }
+
+const actions: ActionCard[] = [
+  { id: 'view-roadmap',    target: 'roadmap',    label: 'Open roadmap',    hint: '查看路线图' },
+  { id: 'view-milestones', target: 'milestones', label: 'Review milestones', hint: '进入节点列表' },
+  { id: 'view-status',     target: 'status',     label: 'Check status',     hint: '查看状态速览' },
+]
+
+const metrics: MetricRow[] = [
+  { id: 'sprint-day',   label: 'Sprint day',   value: 'Day 3 / 7' },
+  { id: 'tasks-closed', label: 'Tasks closed', value: '12 / 28' },
+  { id: 'confidence',   label: 'Confidence',   value: '82%' },
+]
+
+function runAction(target: Section) {
+  section.value = target
+  openSheet()
+}
+
+function openUpdate(item: UpdateCard) {
+  section.value = item.target
+  openSheet()
+}
 
 /** 生命周期 */
 onMounted(() => {
@@ -284,10 +391,81 @@ onBeforeUnmount(() => {
 .hero h1, .hero h2{ margin:0; white-space:nowrap; }
 .hero h1{ font-size:88px; font-weight:800; line-height:1.06; }
 .hero h2{ font-size:48px; font-weight:700; line-height:1.1; }
-.card{ position:absolute; border-radius:28px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.08); }
-.card::after{ content:""; position:absolute; inset:0; background: radial-gradient(1200px 320px at 18% -8%, rgba(255,255,255,.56), transparent 60%); }
+.card{
+  position:absolute;
+  border-radius:28px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.08);
+  display:flex;
+  flex-direction:column;
+  padding:32px;
+  gap:24px;
+  color:#0f172a;
+}
+.card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: radial-gradient(1200px 320px at 18% -8%, rgba(255,255,255,.56), transparent 60%);
+  pointer-events:none;
+}
+.card > *{ position:relative; z-index:1; }
 .card-a{ background: linear-gradient(90deg,#F4FBB3 0%,#DDF6E8 42%,#E6F3FF 100%); }
 .card-b{ background: linear-gradient(90deg,#F4FBB3 0%,#E7F9BF 45%,#D7F7D0 100%); }
+
+.card-head{ display:flex; flex-direction:column; gap:6px; }
+.card-head h3{ margin:0; font-size:28px; font-weight:800; letter-spacing:.2px; }
+.card-head .eyebrow{ margin:0; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.3em; }
+.card-head .sub{ margin:0; font-size:16px; opacity:.78; line-height:1.5; }
+
+.updates{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+.update-item{ margin:0; }
+.update-card{
+  width:100%;
+  border:0;
+  border-radius:18px;
+  padding:18px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  background:rgba(255,255,255,.52);
+  box-shadow:0 8px 24px rgba(15,23,42,.08);
+  cursor:pointer;
+  transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s cubic-bezier(.16,1,.3,1);
+}
+.update-card:hover{ transform:translateY(-4px); box-shadow:0 16px 38px rgba(15,23,42,.15); }
+.update-card:focus-visible{ outline:2px solid rgba(59,130,246,.8); outline-offset:4px; }
+.update-meta{ display:flex; flex-direction:column; gap:6px; text-align:left; }
+.update-meta .date{ font-weight:700; letter-spacing:.2em; font-size:12px; text-transform:uppercase; }
+.update-meta .badge{ font-size:13px; font-weight:700; background:rgba(15,23,42,.08); border-radius:999px; padding:4px 10px; }
+.update-body{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; text-align:right; }
+.update-body .title{ font-size:17px; font-weight:700; }
+.update-body .desc{ font-size:14px; opacity:.7; max-width:220px; }
+
+.action-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+.action{
+  border:0;
+  border-radius:16px;
+  padding:16px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  background:rgba(255,255,255,.56);
+  box-shadow:0 8px 24px rgba(15,23,42,.08);
+  cursor:pointer;
+  transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s cubic-bezier(.16,1,.3,1);
+}
+.action:hover{ transform:translateY(-3px); box-shadow:0 16px 36px rgba(15,23,42,.14); }
+.action:focus-visible{ outline:2px solid rgba(16,185,129,.7); outline-offset:4px; }
+.action-label{ font-size:18px; font-weight:700; }
+.action-hint{ font-size:14px; opacity:.72; }
+
+.progress{ margin:0; display:flex; flex-direction:column; gap:10px; }
+.progress-row{ display:flex; align-items:center; justify-content:space-between; font-size:14px; }
+.progress-row dt{ font-weight:600; opacity:.75; }
+.progress-row dd{ margin:0; font-weight:700; font-size:16px; }
 
 /* 选中态（调试） */
 .sel{ outline:2px dashed #4f46e5; outline-offset:2px; }
