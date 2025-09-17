@@ -1,363 +1,467 @@
 <template>
-  <div class="root" ref="rootEl">
-    <!-- 固定层（不随滚动） -->
-  <div class="content" :class="{ blurred: sheetOpen }">
-    <div class="overlay">
-      <div
-        class="logo-pill"
-        :class="{ hidebg: navHideBg, compact: navCompact }"
-        :style="fixedStyle(posData.logo, navCompact, NAV_COMPACT_PILL_SIZE)"
-        @click="select('logo')"
-      >
-        <span class="logo-label">Oakflat Digital</span>
+  <div class="page">
+    <section class="hero-block">
+      <div class="hero-banner">
+        <div class="hero-media" aria-hidden="true"></div>
+        <div class="hero-overlay">
+          <p class="eyebrow">Oakflat Digital · 2025 研发冲刺 / Product Engineering Sprint</p>
+          <h1>技术路线图实时快照<br />Roadmap live snapshot</h1>
+          <p class="lede">
+            每日同步最新进展，梳理交付节奏与依赖，帮助团队快速锁定重点。
+            <br />
+            Capture current builds, dependencies, and launch gates in one evolving view.
+          </p>
+          <div class="actions">
+            <button type="button" class="primary" @click="openSheet">查看路线图 · View roadmap</button>
+            <RouterLink class="ghost" to="/status">状态面板 · Status board</RouterLink>
+          </div>
+          <dl class="stats">
+            <div class="stat">
+              <dt>活跃模块 / Active modules</dt>
+              <dd>7</dd>
+            </div>
+            <div class="stat">
+              <dt>当周节点 / Milestones this week</dt>
+              <dd>4</dd>
+            </div>
+            <div class="stat">
+              <dt>交付完成率 / Completion</dt>
+              <dd>68%</dd>
+            </div>
+          </dl>
+        </div>
       </div>
+    </section>
 
-      <div
-        class="brand-badge"
-        :class="{ visible: navLogoVisible, compact: navCompact }"
-        :style="badgeStyle(posData.logo, navCompact)"
-        aria-hidden="true"
+    <aside class="update-column" aria-label="最新更新 Latest updates">
+      <article
+        v-for="item in cards"
+        :key="item.key"
+        class="update-card"
+        :class="item.variant"
+        @click="openCard(item)"
       >
-        <img src="@/assets/logo.svg" alt="logo" />
-      </div>
-    </div>
-
-    <!-- 左下角 icon -->
-    <div
-      class="corner"
-      :class="{ compact: scrolled }"
-      :style="fixedStyle(posData.icon, scrolled, ICON_COMPACT_SIZE)"
-      @click="onIconClick"
-    >
-      <img src="@/assets/icons/focus.svg" alt="" />
-    </div>
- </div>
-    <!-- 舞台：等比缩放 + 居中（打开 sheet 时自己模糊 + 右推） -->
-    <div class="stage" :style="stageStyle" :class="{ blurred: sheetOpen }" ref="stageEl">
-      <img v-if="debugBg" class="ref" src="@/assets/reference.png" alt="" />
-
-      <header
-        class="hero"
-        :style="heroRect"
-        :class="{ sel: selected === 'hero' && debugOn }"
-        @click="select('hero')"
-      >
-        <h1>Oakflat Digital</h1>
-        <h2>技术路线 / 节点图</h2>
-      </header>
-
-      <div
-        class="card card-a"
-        :style="rect(posData.cardA)"
-        :class="{ sel: selected === 'cardA' && debugOn }"
-        @click="select('cardA')"
-      />
-      <div
-        class="card card-b"
-        :style="rect(posData.cardB)"
-        :class="{ sel: selected === 'cardB' && debugOn }"
-        @click="select('cardB')"
-      />
-
-      <div v-if="debugGrid" class="grid"></div>
-      <div class="page-tail" :style="{ height: extraScroll + 'px' }"></div>
-    </div>
-
-    <!-- 毛玻璃组件（blur 交由 stage 处理，因此这里传 0） -->
-    <GlassSheet
-      :open="sheetOpen"
-      v-model:modelValue="section"
-      :title="'→ 我们现在的工作'"
-      :items="sheetItems"
-      :width="300"
-      :left="48"
-      :top="84"
-      :blur="0"
-      :veil="'rgba(255,255,255,.36)'"
-      @close="closeSheet"
-    />
-
-    <!-- 调试组件 -->
-    <DebugTools
-      v-model:enabled="debugOn"
-      v-model:grid="debugGrid"
-      v-model:bg="debugBg"
-      v-model:selected="selected"
-      :scale="+scale"
-      :offset-x="+offsetX"
-      :offset-y="+offsetY"
-      :export-json="exportJson"
-      :pos-data="posData"
-      :design-w="DESIGN_W"
-      :design-h="DESIGN_H"
-    />
+        <header class="card-head">
+          <span class="badge">{{ item.badge }}</span>
+          <time :datetime="item.dateISO">{{ item.date }}</time>
+        </header>
+        <h2>{{ item.title }}</h2>
+        <p>{{ item.summary }}</p>
+        <footer class="card-footer">
+          <span>{{ item.cta }}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10M13 8l4 4-4 4" /></svg>
+        </footer>
+      </article>
+    </aside>
   </div>
+
+  <GlassSheet
+    :open="sheetOpen"
+    v-model:modelValue="section"
+    title="→ 我们现在的工作"
+    :items="sheetItems"
+    :width="360"
+    :left="48"
+    :top="96"
+    :blur="0"
+    :veil="'rgba(16,19,28,.42)'"
+    @update:modelValue="onSectionSelect"
+    @close="closeSheet"
+  >
+    <template #default>
+      <div class="sheet-body">
+        <h3>{{ sheetCopy[section].title }}</h3>
+        <p>{{ sheetCopy[section].body }}</p>
+        <button type="button" class="primary" @click="navigateSection">立即前往 · Open section</button>
+      </div>
+    </template>
+  </GlassSheet>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import DebugTools from '@/components/DebugTools.vue'
+import { computed, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import GlassSheet from '@/components/GlassSheet.vue'
 
-/** 设计稿尺寸 & 额外滚动 */
-const DESIGN_W = 1920
-const DESIGN_H = 1080
-const extraScroll = 2400
+type Section = 'roadmap' | 'milestones' | 'status'
 
-/** 滚动阈值 */
-const NAV_BG_COLLAPSE_T = 10
-const NAV_LOGO_SHOW_T   = 28
-const NAV_SHRINK_T      = 60
-const ICON_COMPACT_SIZE     = 56
-const NAV_COMPACT_PILL_SIZE = 56
-
-/** 初始位置（设计坐标） */
-const posData = reactive({
-  logo:  { x: 57,  y: 36,  w: 320, h: 87  },
-  hero:  { x: 960, y: 447, w: 1200, h: 172, centerX: true },
-  cardA: { x: 437, y: 846, w: 360, h: 260 },
-  cardB: { x: 1128,y: 846, w: 360, h: 260 },
-  icon:  { x: 57,  y: 985, w: 32,  h: 32  },
-})
-
-/** 等比缩放 + 居中 */
-const vw = ref(window.innerWidth)
-const vh = ref(window.innerHeight)
-const scale   = computed(() => Math.min(vw.value / DESIGN_W, vh.value / DESIGN_H))
-const offsetX = computed(() => (vw.value - DESIGN_W * scale.value) / 2)
-const offsetY = computed(() => (vh.value - DESIGN_H * scale.value) / 2)
-const stageStyle = computed(() => ({
-  width: DESIGN_W + 'px',
-  height: DESIGN_H + 'px',
-  /* 追加一个二次位移变量，打开 sheet 时右推 */
-  transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value}) translate(var(--push-x, 0), var(--push-y, 0))`,
-  transformOrigin: 'top left',
-}))
-function onResize(){ vw.value = window.innerWidth; vh.value = window.innerHeight }
-
-/** 舞台元素定位（设计坐标） */
-function rect(r: any){
-  return {
-    left: r.x + 'px',
-    top:  r.y + 'px',
-    width:  r.w + 'px',
-    height: r.h + 'px',
-    '--w':  r.w + 'px',
-    '--h':  r.h + 'px',
-  }
-}
-const heroRect = computed(() => ({
-  left: (posData.hero.centerX ? DESIGN_W / 2 : posData.hero.x) + 'px',
-  top: posData.hero.y + 'px',
-  width: posData.hero.w + 'px',
-  height: posData.hero.h + 'px',
-  transform: posData.hero.centerX ? 'translateX(-50%)' : '',
-}))
-
-/** 固定层通用定位（设计坐标 → 视口 fixed） */
-function fixedStyle(r: any, compact = false, compactSize = 56) {
-  const w0 = compact ? compactSize : r.w
-  const h0 = compact ? compactSize : r.h
-  return {
-    left:  `${offsetX.value + r.x * scale.value}px`,
-    top:   `${offsetY.value + r.y * scale.value}px`,
-    width: `var(--w)`,
-    height:`var(--h)`,
-    '--w': `${w0 * scale.value}px`,
-    '--h': `${h0 * scale.value}px`,
-  }
+type Card = {
+  key: Section | 'digest'
+  title: string
+  summary: string
+  badge: string
+  cta: string
+  date: string
+  dateISO: string
+  variant?: 'highlight'
 }
 
-/** 徽标排布（独立） */
-const BADGE_BASE_SIZE    = Math.round(posData.logo.h * 0.5)
-const BADGE_COMPACT_SIZE = 56
-function badgeStyle(r: any, compact = false){
-  const pillW = (compact ? NAV_COMPACT_PILL_SIZE : r.w) * scale.value
-  const pillH = (compact ? NAV_COMPACT_PILL_SIZE : r.h) * scale.value
-  const left  = offsetX.value + r.x * scale.value
-  const top   = offsetY.value + r.y * scale.value
-  const cx    = left + pillW / 2
-  const cy    = top  + pillH / 2
-  const size  = (compact ? BADGE_COMPACT_SIZE : BADGE_BASE_SIZE) * scale.value
-  return { left:`${cx - size/2}px`, top:`${cy - size/2}px`, width:`${size}px`, height:`${size}px` }
-}
+const router = useRouter()
 
-/** —— 调试状态：交由 DebugTools 控制 —— */
-const debugOn   = ref(true)
-const debugGrid = ref(false)
-const debugBg   = ref(false)
-const selected  = ref<keyof typeof posData | ''>('')
-
-function select(k: keyof typeof posData){
-  if (debugOn.value) selected.value = k
-}
-
-/** 导出 JSON（供 DebugTools 复制） */
-const exportJson = computed(() => {
-  const obj: Record<string, any> = {}
-  for (const [k, v] of Object.entries(posData)) {
-    obj[k] = { x: (v as any).x, y: (v as any).y, w: (v as any).w, h: (v as any).h }
-    if ((v as any).centerX) obj[k].centerX = true
-  }
-  return JSON.stringify(obj, null, 2)
-})
-
-/** 滚动监听：三段状态 */
-const rootEl = ref<HTMLElement|null>(null)
-const scrolled        = ref(false)
-const navHideBg       = ref(false)
-const navLogoVisible  = ref(false)
-const navCompact      = ref(false)
-function onAnyScroll(){
-  const y = window.scrollY || rootEl.value?.scrollTop || 0
-  scrolled.value       = y > 10
-  navHideBg.value      = y > NAV_BG_COLLAPSE_T
-  navLogoVisible.value = y > NAV_LOGO_SHOW_T
-  navCompact.value     = y > NAV_SHRINK_T
-}
-
-/** 第二页（高斯模糊） */
-const sheetOpen = ref(false)
-const sheetItems = [
-  { key: 'roadmap',    label: '技术路线图' },
+const sheetItems: Array<{ key: Section; label: string }> = [
+  { key: 'roadmap', label: '技术路线图' },
   { key: 'milestones', label: '节点' },
-  { key: 'status',     label: '状态' },
+  { key: 'status', label: '状态' },
 ]
-const section = ref<'roadmap'|'milestones'|'status'>('roadmap')
-function onIconClick(e: MouseEvent){
-  if (debugOn.value && (e as any).altKey) { selected.value = 'icon'; return }
-  openSheet()
-}
-function openSheet(){ sheetOpen.value = true;  lockScroll(true) }
-function closeSheet(){ sheetOpen.value = false; lockScroll(false) }
-function lockScroll(on: boolean){ document.documentElement.style.overflow = on ? 'hidden' : '' }
-function onEsc(e: KeyboardEvent){ if (e.key === 'Escape' && sheetOpen.value) closeSheet() }
 
-/** 生命周期 */
-onMounted(() => {
-  window.addEventListener('resize', onResize)
-  window.addEventListener('scroll', onAnyScroll, { passive: true })
-  window.addEventListener('keydown', onEsc)
-  rootEl.value?.addEventListener('scroll', onAnyScroll, { passive: true })
-  onAnyScroll()
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', onResize)
-  window.removeEventListener('scroll', onAnyScroll)
-  window.removeEventListener('keydown', onEsc)
-  rootEl.value?.removeEventListener('scroll', onAnyScroll)
-})
+const sheetCopy: Record<Section, { title: string; body: string }> = {
+  roadmap: {
+    title: '技术路线图 · Roadmap',
+    body: '梳理阶段性交付、接口依赖和上线节奏，稍后会补充详细模块。',
+  },
+  milestones: {
+    title: '节点 · Milestones',
+    body: '跟踪里程碑的达成情况，提供负责人和阻塞提醒，目前为占位内容。',
+  },
+  status: {
+    title: '状态 · Status',
+    body: '汇总看板内关键任务的实时完成度和风险提示，持续打磨中。',
+  },
+}
+
+const cards = computed<Card[]>(() => [
+  {
+    key: 'roadmap',
+    title: '路线图骨架上线 · Roadmap scaffold live',
+    summary: '基础章节结构已对齐设计，正在对接 API 以承载动态数据。',
+    badge: '迭代 / Sprint',
+    cta: '查看章节 · View section',
+    date: '09·17',
+    dateISO: '2025-09-17',
+    variant: 'highlight',
+  },
+  {
+    key: 'milestones',
+    title: '节点甘特草稿 · Milestone gantt draft',
+    summary: '完成当前冲刺的阶段拆解，并将依赖映射给后端与设计。',
+    badge: '计划 / Planning',
+    cta: '打开节点 · Open milestones',
+    date: '09·16',
+    dateISO: '2025-09-16',
+  },
+  {
+    key: 'status',
+    title: '状态仪表联调 · Status telemetry',
+    summary: '整合构建、监控和 QA 数据源，准备展示实时完成度。',
+    badge: '联调 / Integration',
+    cta: '前往状态 · Jump to status',
+    date: '09·16',
+    dateISO: '2025-09-16',
+  },
+  {
+    key: 'digest',
+    title: '每日纪要 · Daily digest',
+    summary: '发布最新调研与设计稿更新，保持团队对齐，本节将持续扩充。',
+    badge: '资讯 / Digest',
+    cta: '阅读更多 · Read more',
+    date: '09·15',
+    dateISO: '2025-09-15',
+  },
+])
+
+const sheetOpen = ref(false)
+const section = ref<Section>('roadmap')
+
+function openSheet() {
+  sheetOpen.value = true
+}
+
+function closeSheet() {
+  sheetOpen.value = false
+}
+
+function onSectionSelect(next: Section) {
+  section.value = next
+}
+
+function navigateSection() {
+  closeSheet()
+  router.push({ name: section.value })
+}
+
+function openCard(card: Card) {
+  if (card.key === 'digest') {
+    router.push({ name: 'roadmap', query: { tab: 'digest' } })
+    return
+  }
+  section.value = card.key
+  navigateSection()
+}
 </script>
 
 <style scoped>
-/* 页面容器/舞台/网格/坐标 */
-.root { position: fixed; inset: 0; background:#fff; overflow: auto; }
-.overlay { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
-.stage { position: absolute; top: 0; left: 0; }
-.ref { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.25; pointer-events:none; }
-.grid{
-  position:absolute; inset:0; pointer-events:none;
-  background-image:
-    linear-gradient(to right, rgba(0,0,0,.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.07) 1px, transparent 1px),
-    linear-gradient(to right, rgba(0,0,0,.12) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.12) 1px, transparent 1px);
-  background-size: 10px 10px, 10px 10px, 100px 100px, 100px 100px;
-}
-.page-tail{ height: 0; }
-
-/* 舞台在打开弹层时模糊 + 右推（避免全屏 backdrop-filter 首帧卡顿） */
-.stage{
-  will-change: transform, filter;
-  transition:
-    filter .22s cubic-bezier(.16,1,.30,1),
-    transform .22s cubic-bezier(.16,1,.30,1);
-}
-.stage.blurred{
-  --push-x: 28px;
-  --push-y: 0px;
-  filter: blur(18px) saturate(1.05);
+.page {
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 64px) clamp(20px, 5vw, 56px) clamp(48px, 6vw, 72px);
+  display: grid;
+  gap: clamp(28px, 5vw, 48px);
 }
 
-/* 标题与卡片 */
-.hero{ position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
-.hero h1, .hero h2{ margin:0; white-space:nowrap; }
-.hero h1{ font-size:88px; font-weight:800; line-height:1.06; }
-.hero h2{ font-size:48px; font-weight:700; line-height:1.1; }
-.card{ position:absolute; border-radius:28px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.08); }
-.card::after{ content:""; position:absolute; inset:0; background: radial-gradient(1200px 320px at 18% -8%, rgba(255,255,255,.56), transparent 60%); }
-.card-a{ background: linear-gradient(90deg,#F4FBB3 0%,#DDF6E8 42%,#E6F3FF 100%); }
-.card-b{ background: linear-gradient(90deg,#F4FBB3 0%,#E7F9BF 45%,#D7F7D0 100%); }
+.hero-block {
+  display: flex;
+}
 
-/* 选中态（调试） */
-.sel{ outline:2px dashed #4f46e5; outline-offset:2px; }
+.hero-banner {
+  position: relative;
+  width: 100%;
+}
 
-/* 顶部 pill */
-.logo-pill{
-  position: fixed; left: 0; top: 0;
-  width: var(--w); height: var(--h);
-  display: flex; align-items: center; justify-content: center;
-  gap: 10px; border-radius: 1000px; overflow: hidden;
-  pointer-events: auto; user-select: none;
-  padding: 0 24px; line-height: 1;
-  transition:
-    width .45s cubic-bezier(0.16,1,0.3,1),
-    height .45s cubic-bezier(0.16,1,0.3,1),
-    left .45s cubic-bezier(0.16,1,0.3,1),
-    top .45s cubic-bezier(0.16,1,0.3,1),
-    border-radius .45s cubic-bezier(0.16,1,0.3,1);
+.hero-media {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: clamp(18px, 3vw, 32px);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(135deg, #19273c 0%, #3556ff 60%, #7b3fff 100%);
+  filter: saturate(1.05);
 }
-.logo-pill::before{
-  content:""; position:absolute; inset:0; border-radius: inherit;
-  background: linear-gradient(135deg,#9CCBFF 0%,#CAA8FF 100%);
-  box-shadow: 0 12px 36px rgba(120,150,255,.25), 0 2px 10px rgba(120,150,255,.18);
-  transform-origin: left center;
-  transition: transform .45s cubic-bezier(0.16,1,0.3,1), opacity .25s ease;
-}
-.logo-label{
-  position: relative; z-index: 1;
-  color:#fff; font-weight:800; letter-spacing:.2px; white-space: nowrap;
-  font-size: calc(var(--h) * 0.38);
-  transition: opacity .22s ease;
-}
-.logo-pill.hidebg::before{ transform: scaleX(0); opacity: .8; }
-.logo-pill.hidebg .logo-label{ opacity: 0; }
-.logo-pill.compact{ border-radius: 9999px; padding: 0; }
 
-/* 徽标 */
-.brand-badge{
-  position: fixed; z-index: 22;
-  display: grid; place-items: center;
-  border-radius: 9999px; overflow: hidden;
-  pointer-events: none;
-  opacity: 0; transform: scale(.85);
-  transition: opacity .28s ease .06s, transform .30s cubic-bezier(0.16,1,0.3,1) .06s;
+.hero-overlay {
+  position: absolute;
+  inset: clamp(18px, 3vw, 32px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(16px, 2.6vw, 32px);
+  padding: clamp(16px, 2.6vw, 28px) clamp(18px, 3vw, 36px);
+  border-radius: clamp(16px, 3vw, 28px);
+  backdrop-filter: blur(24px) saturate(1.3);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.28));
+  color: #f9fbff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
-.brand-badge.visible{ opacity: 1; transform: scale(1); }
-.brand-badge.compact{ box-shadow: 0 10px 26px rgba(0,0,0,.12); backdrop-filter: blur(2px); }
-.brand-badge img{ width:100%; height:100%; display:block; }
 
-/* 左下角 icon */
-.corner{
-  position: fixed; left: 0; top: 0;
-  width: var(--w); height: var(--h);
-  display: grid; place-items: center;
-  border-radius: 8px; background: #f2f2f2;
-  box-shadow: 0 6px 18px rgba(0,0,0,.08);
-  pointer-events: auto;
-  z-index: 40;
-  min-width: 44px; min-height: 44px;
-  touch-action: manipulation;
-  transition:
-    width .45s cubic-bezier(0.16, 1, 0.3, 1),
-    height .45s cubic-bezier(0.16, 1, 0.3, 1),
-    left .45s cubic-bezier(0.16, 1, 0.3, 1),
-    top .45s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius .45s cubic-bezier(0.16, 1, 0.3, 1),
-    background .45s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow .45s cubic-bezier(0.16, 1, 0.3, 1),
-    transform .45s cubic-bezier(0.16, 1, 0.3, 1);
+.eyebrow {
+  margin: 0;
+  font-size: clamp(12px, 1.4vw, 14px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.82;
 }
-.corner.compact{ border-radius: 9999px; background:#fff; box-shadow: 0 10px 26px rgba(0,0,0,.12); transform: scale(1.04); backdrop-filter: blur(2px); }
-.corner img{ width:60%; height:60%; display:block; }
+
+.hero-overlay h1 {
+  margin: 0;
+  font-size: clamp(36px, 4.6vw, 64px);
+  line-height: 1.08;
+  font-weight: 800;
+}
+
+.lede {
+  margin: 0;
+  font-size: clamp(15px, 1.6vw, 20px);
+  line-height: 1.6;
+  max-width: 36ch;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.actions .primary,
+.sheet-body .primary {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #5e7bff, #8f63ff);
+  cursor: pointer;
+  transition: transform 0.22s var(--page-ease), box-shadow 0.22s var(--page-ease);
+}
+
+.actions .primary:hover,
+.sheet-body .primary:hover {
+  box-shadow: 0 12px 30px rgba(100, 118, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+.actions .primary:active,
+.sheet-body .primary:active {
+  transform: translateY(0);
+}
+
+.actions .ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #cfd8ff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.actions .ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.stat {
+  display: grid;
+  gap: 6px;
+}
+
+.stat dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.72;
+}
+
+.stat dd {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 700;
+}
+
+.update-column {
+  display: grid;
+  gap: clamp(16px, 2vw, 22px);
+}
+
+.update-card {
+  position: relative;
+  border-radius: 24px;
+  padding: clamp(20px, 2.2vw, 28px);
+  background: rgba(244, 246, 255, 0.9);
+  border: 1px solid rgba(100, 112, 255, 0.16);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+  display: grid;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s var(--page-ease), box-shadow 0.2s var(--page-ease);
+}
+
+.update-card.highlight {
+  background: linear-gradient(145deg, rgba(92, 111, 255, 0.16), rgba(144, 97, 255, 0.08));
+  border-color: rgba(104, 128, 255, 0.32);
+}
+
+.update-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(98, 112, 255, 0.18);
+  color: #273680;
+  font-weight: 600;
+}
+
+.update-card time {
+  color: rgba(15, 23, 42, 0.52);
+}
+
+.update-card h2 {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 26px);
+  font-weight: 700;
+  color: #101526;
+}
+
+.update-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(15, 23, 42, 0.78);
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3647a8;
+}
+
+.card-footer svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.sheet-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px 20px 20px;
+}
+
+.sheet-body h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sheet-body p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(15, 23, 42, 0.78);
+}
+
+@media (min-width: 1200px) {
+  .page {
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .page {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-overlay {
+    position: relative;
+    inset: auto;
+    margin-top: -80px;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-overlay {
+    margin-top: -40px;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 </style>
