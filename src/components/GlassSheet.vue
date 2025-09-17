@@ -64,11 +64,18 @@ const emit = defineEmits<{
 function onEsc(e: KeyboardEvent){
   if (e.key === 'Escape' && props.open) emit('close')
 }
-watch(() => props.open, v => {
-  document.documentElement.style.overflow = v ? 'hidden' : ''
-})
+watch(
+  () => props.open,
+  v => {
+    document.documentElement.style.overflow = v ? 'hidden' : ''
+  },
+  { immediate: true },
+)
 onMounted(() => window.addEventListener('keydown', onEsc))
-onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEsc)
+  document.documentElement.style.overflow = ''
+})
 
 const panelStyle = computed(() => ({
   '--left':  props.left + 'px',
@@ -151,15 +158,17 @@ const blurStyle = computed(() => ({
   justify-items: start;             /* 内容靠左，项自身宽度由内容决定 */
 }
 .gs .gs-menu li{
+  position: relative;
   display: inline-flex;             /* 宽度 = 文本内容 + 内边距 */
   width: auto; max-width: 100%;
   font-size: 22px; color: var(--text-1); cursor: pointer;
   padding: var(--panel-item-py) var(--panel-item-px);
   border-radius: var(--radius-pill);
-  transition: color .12s ease, background .12s ease, transform .12s ease;
+  transition: color .16s ease, background .16s ease, transform .16s ease;
 }
 .gs .gs-menu li:hover{ background: rgba(0,0,0,.06); transform: translateX(2px); }
 .gs .gs-menu li.active{ background: rgba(79,70,229,.12); color: var(--brand-1); }
+.gs .gs-menu li:focus-visible{ outline: 3px solid rgba(79,70,229,.28); outline-offset: 2px; }
 
 /* 右上角关闭按钮保持不变 */
 .gs-close{
