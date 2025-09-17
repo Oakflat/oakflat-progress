@@ -1,10 +1,7 @@
-<!-- src/App.vue -->
 <template>
-  <RouterView />
+  <RouterView v-slot="{ Component, route }">
+    <Transition name="page" mode="out-in">
+      <component :is="Component" :key="route.fullPath" class="page-view" />
+    </Transition>
+  </RouterView>
 </template>
-
-<script setup lang="ts"></script>
-
-<style>
-/* 可留空，或放全局样式 */
-</style>
